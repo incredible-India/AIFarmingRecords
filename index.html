@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeoInt AI — Voice Field Data Entry</title>
+<style>
+  :root{
+    --paper:#f7f4ea;
+    --card:#ffffff;
+    --ink:#20301f;
+    --ink-soft:#5b6a53;
+    --line:#e1ddc9;
+    --leaf:#3d6b3a;
+    --leaf-deep:#284a26;
+    --gold:#bd8b2e;
+    --gold-deep:#96701f;
+    --danger:#a3402f;
+    --good:#3d6b3a;
+    --shadow: 0 1px 2px rgba(32,48,31,.06), 0 10px 26px rgba(32,48,31,.09);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
+    background:
+      radial-gradient(1100px 480px at 8% -12%, #eef0dc 0%, transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 16px 80px;
+  }
+  .wrap{max-width:780px;margin:0 auto;}
+
+  /* ---- brand header ---- */
+  header.page{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:20px;
+    padding-bottom:16px;
+    border-bottom:2px solid var(--leaf-deep);
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand .mark{
+    width:44px;height:44px;border-radius:11px;
+    background:linear-gradient(155deg, var(--leaf) 0%, var(--leaf-deep) 100%);
+    display:flex;align-items:center;justify-content:center;
+    flex:none;
+    box-shadow:var(--shadow);
+  }
+  .brand .mark svg{width:24px;height:24px;}
+  .brand-text h1{
+    margin:0;
+    font-size:21px;
+    letter-spacing:.2px;
+    font-weight:800;
+    color:var(--leaf-deep);
+  }
+  .brand-text h1 span{color:var(--gold-deep);}
+  .brand-text p{
+    margin:2px 0 0;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+
+  /* ---- AI toggle badge ---- */
+  .ai-toggle{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    border:1px solid var(--line);
+    background:var(--card);
+    border-radius:999px;
+    padding:6px 12px 6px 6px;
+    box-shadow:var(--shadow);
+    user-select:none;
+    flex:none;
+  }
+  .ai-toggle .dot{
+    width:26px;height:26px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:#eee9d6;color:var(--ink-soft);
+    font-size:13px;
+    transition:.2s;
+  }
+  .ai-toggle.on .dot{background:var(--gold);color:#fff;}
+  .ai-toggle span.lbl{font-size:12px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
+  .ai-toggle.on span.lbl{color:var(--gold-deep);}
+
+  /* ---- secure-context / mic help banner ---- */
+  .banner{
+    background:#fbf2df;
+    border:1px solid #edd9a8;
+    color:#6b4f11;
+    font-size:12.5px;
+    line-height:1.5;
+    padding:10px 14px;
+    border-radius:8px;
+    margin-bottom:16px;
+    display:none;
+  }
+  .banner.show{display:block;}
+
+  /* ---- card / form ---- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    box-shadow:var(--shadow);
+    padding:24px;
+    margin-bottom:22px;
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    font-size:15px;
+    color:var(--ink);
+    background:#fdfdfa;
+  }
+  .field input:focus{
+    outline:none;
+    border-color:var(--leaf);
+    box-shadow:0 0 0 3px rgba(61,107,58,.14);
+  }
+  .field small.err{color:var(--danger);display:none;font-size:12px;margin-top:4px;}
+  .field.invalid input{border-color:var(--danger);}
+  .field.invalid small.err{display:block;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
+  @media (max-width:560px){.grid2{grid-template-columns:1fr;}}
+
+  .transcript-box{
+    margin-top:2px;
+    margin-bottom:18px;
+    padding:10px 12px;
+    background:#f2f0e2;
+    border:1px dashed var(--line);
+    border-radius:7px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    min-height:20px;
+    display:none;
+  }
+  .transcript-box.show{display:block;}
+
+  /* buttons */
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  button.act{
+    flex:1 1 auto;
+    min-width:150px;
+    padding:12px 14px;
+    border-radius:8px;
+    border:1px solid transparent;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:transform .05s ease, filter .15s;
+  }
+  button.act:active{transform:translateY(1px);}
+  .btn-voice{background:var(--gold);color:#fff;}
+  .btn-voice.listening{background:var(--danger);}
+  .btn-voice:hover{filter:brightness(1.05);}
+  .btn-voice:disabled{opacity:.55;cursor:not-allowed;}
+  .btn-save{background:var(--leaf);color:#fff;}
+  .btn-save:hover{filter:brightness(1.08);}
+  .btn-table{background:transparent;color:var(--leaf-deep);border-color:var(--leaf-deep);}
+  .btn-table:hover{background:var(--leaf-deep);color:#fff;}
+
+  /* records */
+  .records-head{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+  }
+  .records-head h2{font-size:16px;margin:0;color:var(--leaf-deep);}
+  .count-pill{
+    font-size:12px;font-weight:800;color:var(--leaf-deep);
+    background:#e6ecdd;padding:4px 10px;border-radius:999px;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line);}
+  th{color:var(--ink-soft);font-weight:700;font-size:12px;}
+  tr:last-child td{border-bottom:none;}
+  .empty-row td{color:var(--ink-soft);font-style:italic;text-align:center;padding:20px 8px;}
+  .export-link{font-size:12.5px;color:var(--leaf-deep);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font-weight:600;}
+
+  /* toast */
+  #toast{
+    position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);
+    background:var(--ink);color:#fff;padding:12px 20px;border-radius:9px;
+    font-size:14px;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+    transition:opacity .25s, transform .25s;
+    max-width:90vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;}
+  #toast.good{background:var(--good);}
+  #toast.bad{background:var(--danger);}
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(32,48,31,.45);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:16px;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:#fff;border-radius:12px;max-width:380px;width:100%;
+    padding:22px;box-shadow:var(--shadow);
+  }
+  .modal h3{margin:0 0 6px;font-size:16px;color:var(--leaf-deep);}
+  .modal p{margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
+  .modal input{
+    width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:7px;
+    font-size:14px;margin-bottom:12px;
+  }
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;}
+  .modal button{
+    padding:9px 16px;border-radius:7px;border:1px solid var(--line);
+    background:#fff;cursor:pointer;font-size:13.5px;font-weight:700;
+  }
+  .modal button.primary{background:var(--leaf);color:#fff;border-color:var(--leaf);}
+  .modal .status{font-size:12px;margin-top:-4px;margin-bottom:10px;}
+  .modal .status.on{color:var(--good);}
+  .modal .status.off{color:var(--ink-soft);}
+
+  footer.note{
+    text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:26px;
+  }
+  footer.note b{color:var(--leaf-deep);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 21c0-6 4-10 8-11-1 6-4 9-8 11z" fill="#e9d9a0"/>
+          <path d="M12 21c0-7-4-12-9-13 1 7 4 11 9 13z" fill="#ffffff" fill-opacity=".9"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Neo<span>Int</span> AI</h1>
+        <p>Every field, one voice, one record.</p>
+      </div>
+    </div>
+    <div class="ai-toggle" id="aiToggle" title="AI voice parsing (Groq)">
+      <span class="dot" id="aiDot">✦</span>
+      <span class="lbl" id="aiLabel">AI off</span>
+    </div>
+  </header>
+
+  <div class="banner" id="permBanner">
+    Microphone access is blocked. Open your browser's site settings (click the icon left of the address bar) and allow the microphone for this page, then reload. If you opened this file directly by double-clicking it, voice capture may not work at all — instead run it through a local server, e.g. <code>python -m http.server</code>, and open <code>http://localhost:8000</code>.
+  </div>
+
+  <div class="card">
+    <div class="transcript-box" id="transcriptBox"></div>
+
+    <div class="field" id="f-name">
+      <label for="name">Full name</label>
+      <input type="text" id="name" placeholder="e.g. Ravi Kumar">
+      <small class="err">Please enter a name</small>
+    </div>
+
+    <div class="grid2">
+      <div class="field" id="f-mobile">
+        <label for="mobile">Mobile number</label>
+        <input type="text" id="mobile" inputmode="numeric" placeholder="10-digit number" maxlength="10">
+        <small class="err">Enter a valid 10-digit mobile number</small>
+      </div>
+      <div class="field" id="f-aadhar">
+        <label for="aadhar">Aadhar number</label>
+        <input type="text" id="aadhar" inputmode="numeric" placeholder="12-digit number" maxlength="14">
+        <small class="err">Enter a valid 12-digit Aadhar number</small>
+      </div>
+    </div>
+
+    <div class="field" id="f-land">
+      <label for="land">Land holding (acres)</label>
+      <input type="text" id="land" inputmode="decimal" placeholder="e.g. 2.5">
+      <small class="err">Enter land size in acres</small>
+    </div>
+
+    <div class="btn-row">
+      <button class="act btn-voice" id="voiceBtn">🎤 Fill from voice</button>
+      <button class="act btn-save" id="saveBtn">💾 Save &amp; next</button>
+      <button class="act btn-table" id="tableBtn">📊 View records</button>
+    </div>
+  </div>
+
+  <div class="card" id="recordsCard" style="display:none;">
+    <div class="records-head">
+      <h2>Saved records</h2>
+      <span class="count-pill" id="countPill">0 people</span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Mobile</th><th>Aadhar</th><th>Acres</th></tr>
+      </thead>
+      <tbody id="recordsBody">
+        <tr class="empty-row"><td colspan="5">No records saved yet</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+      <button class="export-link" id="exportBtn">Export as CSV</button>
+      <button class="act btn-save" id="confirmBtn" style="flex:none;min-width:auto;padding:9px 18px;">Confirm &amp; close batch</button>
+    </div>
+  </div>
+
+  <footer class="note"><b>NeoInt AI</b> — voice capture uses your browser's speech recognition (Chrome recommended). Spoken text is sent to Groq only when AI parsing is switched on.</footer>
+</div>
+
+<div id="toast"></div>
+
+<div class="overlay" id="aiOverlay">
+  <div class="modal">
+    <h3>AI voice parsing</h3>
+    <p>Paste a Groq API key to let a language model read the full sentence you speak and pick out the name, mobile, Aadhar and land size. Without a key, a simpler pattern-matching parser is used instead. The key is stored only in this browser.</p>
+    <p class="status off" id="aiStatusLine">Currently off — using pattern-matching parser</p>
+    <input type="password" id="groqKeyInput" placeholder="gsk_...">
+    <div class="row">
+      <button id="aiClear">Turn off</button>
+      <button class="primary" id="aiSave">Save &amp; enable</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- state ---------------- */
+  const fields = {
+    name: document.getElementById('name'),
+    mobile: document.getElementById('mobile'),
+    aadhar: document.getElementById('aadhar'),
+    land: document.getElementById('land'),
+  };
+  const records = [];
+  let groqKey = localStorage.getItem('groq_key') || '';
+  let listening = false;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let activeStream = null;
+  let recognition = null;
+
+  /* ---------------- toast ---------------- */
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+  function toast(msg, kind){
+    toastEl.textContent = msg;
+    toastEl.className = 'show' + (kind ? ' ' + kind : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toastEl.className = '', 3200);
+  }
+
+  /* ---------------- secure context check ---------------- */
+  const permBanner = document.getElementById('permBanner');
+  if(!window.isSecureContext){
+    permBanner.classList.add('show');
+  }
+
+  /* ---------------- AI toggle modal ---------------- */
+  const aiToggle = document.getElementById('aiToggle');
+  const aiLabel = document.getElementById('aiLabel');
+  const aiOverlay = document.getElementById('aiOverlay');
+  const aiStatusLine = document.getElementById('aiStatusLine');
+  const groqKeyInput = document.getElementById('groqKeyInput');
+
+  function refreshAiBadge(){
+    if(groqKey){
+      aiToggle.classList.add('on');
+      aiLabel.textContent = 'AI on';
+      aiStatusLine.textContent = 'Currently on — Groq Whisper + AI is parsing your speech';
+      aiStatusLine.className = 'status on';
+    } else {
+      aiToggle.classList.remove('on');
+      aiLabel.textContent = 'AI off';
+      aiStatusLine.textContent = 'Currently off — using your browser\'s built-in voice + pattern-matching';
+      aiStatusLine.className = 'status off';
+    }
+    if(typeof updateVoiceBtnIdleLabel === 'function') updateVoiceBtnIdleLabel();
+  }
+
+  aiToggle.addEventListener('click', ()=>{
+    groqKeyInput.value = groqKey;
+    aiOverlay.classList.add('show');
+  });
+  aiOverlay.addEventListener('click', (e)=>{ if(e.target === aiOverlay) aiOverlay.classList.remove('show'); });
+  document.getElementById('aiSave').addEventListener('click', ()=>{
+    const v = groqKeyInput.value.trim();
+    if(!v){ toast('Paste a key first, or use Turn off', 'bad'); return; }
+    groqKey = v;
+    localStorage.setItem('groq_key', v);
+    refreshAiBadge();
+    aiOverlay.classList.remove('show');
+    toast('AI parsing enabled', 'good');
+  });
+  document.getElementById('aiClear').addEventListener('click', ()=>{
+    groqKey = '';
+    localStorage.removeItem('groq_key');
+    refreshAiBadge();
+    aiOverlay.classList.remove('show');
+    toast('AI parsing turned off');
+  });
+
+  /* ---------------- validation ---------------- */
+  function setInvalid(id, invalid){
+    document.getElementById('f-' + id).classList.toggle('invalid', invalid);
+  }
+  function validate(){
+    const v = {
+      name: fields.name.value.trim(),
+      mobile: fields.mobile.value.replace(/\D/g,''),
+      aadhar: fields.aadhar.value.replace(/\D/g,''),
+      land: fields.land.value.trim(),
+    };
+    let ok = true;
+    if(!v.name){ setInvalid('name', true); ok = false; } else setInvalid('name', false);
+    if(!/^[6-9]\d{9}$/.test(v.mobile)){ setInvalid('mobile', true); ok = false; } else setInvalid('mobile', false);
+    if(!/^\d{12}$/.test(v.aadhar)){ setInvalid('aadhar', true); ok = false; } else setInvalid('aadhar', false);
+    if(!v.land || isNaN(parseFloat(v.land))){ setInvalid('land', true); ok = false; } else setInvalid('land', false);
+    return ok ? v : null;
+  }
+
+  /* ---------------- voice capture ---------------- */
+  const voiceBtn = document.getElementById('voiceBtn');
+  const transcriptBox = document.getElementById('transcriptBox');
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const canRecordAudio = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+
+  function updateVoiceBtnIdleLabel(){
+    if(listening) return;
+    if(groqKey && canRecordAudio){
+      voiceBtn.textContent = '🎤 Record & fill (AI)';
+    } else if(SpeechRec){
+      voiceBtn.textContent = '🎤 Fill from voice';
+    } else {
+      voiceBtn.textContent = '🎤 Voice not supported in this browser';
+    }
+  }
+
+  if(!SpeechRec && !canRecordAudio){
+    voiceBtn.disabled = true;
+  }
+  updateVoiceBtnIdleLabel();
+
+  /* ---- Path A: AI on — record audio, transcribe with Groq Whisper (far better with numbers) ---- */
+  async function startWhisperRecording(){
+    try{
+      activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch(err){
+      permBanner.classList.add('show');
+      toast('Microphone permission denied — check your browser settings', 'bad');
+      return;
+    }
+    permBanner.classList.remove('show');
+    audioChunks = [];
+    try{
+      mediaRecorder = new MediaRecorder(activeStream);
+    } catch(err){
+      toast('Recording not supported here, falling back to browser voice', 'bad');
+      activeStream.getTracks().forEach(t => t.stop());
+      if(SpeechRec) startBrowserRecognition();
+      return;
+    }
+    mediaRecorder.ondataavailable = (e)=>{ if(e.data && e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = onWhisperRecordingStopped;
+    mediaRecorder.start();
+    listening = true;
+    voiceBtn.classList.add('listening');
+    voiceBtn.textContent = '⏺ Recording… tap to stop';
+  }
+
+  function stopWhisperRecording(){
+    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    if(activeStream) activeStream.getTracks().forEach(t => t.stop());
+    listening = false;
+    voiceBtn.classList.remove('listening');
+    voiceBtn.textContent = '⏳ Transcribing…';
+  }
+
+  async function onWhisperRecordingStopped(){
+    if(!audioChunks.length){
+      toast('No audio captured, try again', 'bad');
+      updateVoiceBtnIdleLabel();
+      return;
+    }
+    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    const said = await transcribeWithGroqWhisper(blob);
+    updateVoiceBtnIdleLabel();
+    if(!said){
+      toast('AI transcription failed, try again or turn AI off', 'bad');
+      return;
+    }
+    transcriptBox.textContent = '"' + said + '"';
+    transcriptBox.classList.add('show');
+    toast('Sending to AI for parsing…');
+    let parsed = await parseWithGroq(said);
+    if(!parsed) parsed = parseWithRegex(said);
+    applyParsed(parsed);
+  }
+
+  /* ---- Path B: AI off — browser's built-in speech recognition ---- */
+  if(SpeechRec){
+    recognition = new SpeechRec();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = ()=>{
+      listening = true;
+      permBanner.classList.remove('show');
+      voiceBtn.classList.add('listening');
+      voiceBtn.textContent = '⏺ Listening… speak now';
+    };
+    recognition.onerror = (e)=>{
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        permBanner.classList.add('show');
+        toast('Microphone access blocked — see the note above', 'bad');
+      } else if(e.error === 'no-speech'){
+        toast('Didn\'t catch that, try speaking again', 'bad');
+      } else if(e.error === 'audio-capture'){
+        toast('No microphone found on this device', 'bad');
+      } else {
+        toast('Voice error: ' + e.error, 'bad');
+      }
+    };
+    recognition.onend = ()=>{
+      listening = false;
+      updateVoiceBtnIdleLabel();
+    };
+    recognition.onresult = async (e)=>{
+      const said = e.results[0][0].transcript;
+      transcriptBox.textContent = '"' + said + '"';
+      transcriptBox.classList.add('show');
+      const parsed = parseWithRegex(said);
+      applyParsed(parsed);
+    };
+  }
+
+  async function startBrowserRecognition(){
+    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+      } catch(err){
+        permBanner.classList.add('show');
+        toast('Microphone permission denied — check your browser settings', 'bad');
+        return;
+      }
+    }
+    try{ recognition.start(); } catch(err){ /* already started */ }
+  }
+
+  voiceBtn.addEventListener('click', ()=>{
+    if(listening){
+      if(mediaRecorder) stopWhisperRecording();
+      else if(recognition) recognition.stop();
+      return;
+    }
+    if(groqKey && canRecordAudio){
+      startWhisperRecording();
+    } else if(recognition){
+      startBrowserRecognition();
+    }
+  });
+
+  function applyParsed(p){
+    if(!p) { toast('Could not pick out any details, try again', 'bad'); return; }
+    let filled = [];
+    let partial = [];
+    if(p.name){ fields.name.value = p.name; filled.push('name'); }
+    if(p.mobile){
+      fields.mobile.value = p.mobile;
+      if(p.mobile.length === 10) filled.push('mobile'); else partial.push('mobile');
+    }
+    if(p.aadhar){
+      fields.aadhar.value = p.aadhar;
+      if(p.aadhar.length === 12) filled.push('aadhar'); else partial.push('aadhar');
+    }
+    if(p.land){ fields.land.value = p.land; filled.push('land'); }
+
+    if(filled.length && !partial.length){
+      toast('Filled from voice: ' + filled.join(', '), 'good');
+    } else if(filled.length || partial.length){
+      toast('Filled what was clear — please check ' + (partial.join(', ') || 'the highlighted fields'), 'bad');
+    } else {
+      toast('Heard you, but could not find name/mobile/aadhar/land in that', 'bad');
+    }
+  }
+
+  /* ---- fallback regex parser: tolerant of messy digit grouping from speech ---- */
+  function extractDigitsNear(text, keywords, expectedLen){
+    const lower = text.toLowerCase();
+    for(const kw of keywords){
+      const idx = lower.indexOf(kw);
+      if(idx === -1) continue;
+      const window = text.slice(idx + kw.length, idx + kw.length + 60);
+      const digits = (window.match(/\d/g) || []).join('');
+      if(!digits.length) continue;
+      return digits.length >= expectedLen ? digits.slice(0, expectedLen) : digits;
+    }
+    return null;
+  }
+
+  function parseWithRegex(text){
+    const out = {};
+
+    const mobile = extractDigitsNear(text, ['mobile number', 'mobile no', 'phone number', 'contact number', 'mobile', 'phone'], 10);
+    if(mobile) out.mobile = mobile;
+
+    const aadhar = extractDigitsNear(text, ['aadhaar number', 'aadhar number', 'adhar number', 'aadhaar', 'aadhar', 'adhar'], 12);
+    if(aadhar) out.aadhar = aadhar;
+
+    const landMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:acres?|acre)/i);
+    if(landMatch) out.land = landMatch[1];
+
+    const nameMatch = text.match(/(?:my name is|name is|i am|this is)\s+([a-z][a-z\s]{1,40}?)(?=,|\s+mobile|\s+phone|\s+number|\s+aadhaar|\s+aadhar|\s+adhar|\s+land|\s+acre|$)/i);
+    if(nameMatch) out.name = titleCase(nameMatch[1].trim());
+
+    return out;
+  }
+  function titleCase(s){
+    return s.split(' ').filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }
+
+  /* ---- Groq Whisper transcription (audio -> accurate text) ---- */
+  async function transcribeWithGroqWhisper(blob){
+    try{
+      const form = new FormData();
+      form.append('file', blob, 'speech.webm');
+      form.append('model', 'whisper-large-v3-turbo');
+      form.append('response_format', 'json');
+      form.append('language', 'en');
+      form.append('prompt', 'Field survey dictation including a full name, a 10-digit mobile number, a 12-digit Aadhaar number, and land size in acres. Numbers are spoken digit by digit.');
+      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + groqKey },
+        body: form
+      });
+      if(!res.ok) return null;
+      const data = await res.json();
+      return data.text ? data.text.trim() : null;
+    } catch(err){
+      console.error('Groq whisper error', err);
+      return null;
+    }
+  }
+
+  /* ---- Groq-powered parser ---- */
+  async function parseWithGroq(text){
+    try{
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + groqKey
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          temperature: 0,
+          messages: [
+            {
+              role: 'system',
+              content: 'You extract structured data from spoken Indian field-survey text, often transcribed with uneven spacing or grouping around numbers (e.g. "860501" said for a phone number, or "366778 5885 653" said for an Aadhaar number). Concatenate all digits you find near the relevant keyword, ignoring spacing, commas or filler words, then take exactly the first 10 digits for "mobile" and exactly the first 12 digits for "aadhar". If fewer digits than that are present, return whatever digits you found as-is rather than inventing missing ones. Return ONLY a compact JSON object with keys "name" (string or null), "mobile" (digit string or null), "aadhar" (digit string or null), "land" (number as string, acres, or null). No prose, no markdown fences, JSON only.'
+            },
+            { role: 'user', content: text }
+          ]
+        })
+      });
+      if(!res.ok) return null;
+      const data = await res.json();
+      let raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      if(!raw) return null;
+      raw = raw.trim().replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+      const obj = JSON.parse(raw);
+      const out = {};
+      if(obj.name) out.name = titleCase(String(obj.name).trim());
+      if(obj.mobile) out.mobile = String(obj.mobile).replace(/\D/g,'');
+      if(obj.aadhar) out.aadhar = String(obj.aadhar).replace(/\D/g,'');
+      if(obj.land) out.land = String(obj.land).replace(/[^\d.]/g,'');
+      return out;
+    } catch(err){
+      console.error('Groq parse error', err);
+      return null;
+    }
+  }
+
+  /* ---------------- save & records ---------------- */
+  const recordsCard = document.getElementById('recordsCard');
+  const recordsBody = document.getElementById('recordsBody');
+  const countPill = document.getElementById('countPill');
+  const tableBtn = document.getElementById('tableBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const confirmBtn = document.getElementById('confirmBtn');
+  const exportBtn = document.getElementById('exportBtn');
+
+  function maskAadhar(a){ return 'XXXX-XXXX-' + a.slice(-4); }
+
+  function renderRecords(){
+    countPill.textContent = records.length + (records.length === 1 ? ' person' : ' people');
+    if(!records.length){
+      recordsBody.innerHTML = '<tr class="empty-row"><td colspan="5">No records saved yet</td></tr>';
+      return;
+    }
+    recordsBody.innerHTML = records.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.mobile)}</td>
+        <td>${escapeHtml(maskAadhar(r.aadhar))}</td>
+        <td>${escapeHtml(r.land)}</td>
+      </tr>
+    `).join('');
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function clearForm(){
+    fields.name.value = '';
+    fields.mobile.value = '';
+    fields.aadhar.value = '';
+    fields.land.value = '';
+    ['name','mobile','aadhar','land'].forEach(id => setInvalid(id, false));
+    transcriptBox.classList.remove('show');
+    transcriptBox.textContent = '';
+    fields.name.focus();
+  }
+
+  saveBtn.addEventListener('click', ()=>{
+    const v = validate();
+    if(!v){ toast('Please fix the highlighted fields', 'bad'); return; }
+    records.push(v);
+    renderRecords();
+    recordsCard.style.display = 'block';
+    clearForm();
+    toast('Information has been saved for ' + v.name, 'good');
+  });
+
+  tableBtn.addEventListener('click', ()=>{
+    const willShow = recordsCard.style.display === 'none';
+    recordsCard.style.display = willShow ? 'block' : 'none';
+    if(willShow) recordsCard.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  confirmBtn.addEventListener('click', ()=>{
+    if(!records.length){ toast('No records to confirm yet', 'bad'); return; }
+    toast('All information has been saved (' + records.length + (records.length === 1 ? ' person)' : ' people)'), 'good');
+  });
+
+  exportBtn.addEventListener('click', ()=>{
+    if(!records.length){ toast('No records to export yet', 'bad'); return; }
+    const header = 'Name,Mobile,Aadhar,Acres\n';
+    const rows = records.map(r => [r.name, r.mobile, r.aadhar, r.land].join(',')).join('\n');
+    const blob = new Blob([header + rows], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'records.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  /* ---------------- initial render (deferred until everything above exists) ---------------- */
+  refreshAiBadge();
+
+})();
+</script>
+</body>
+</html>
